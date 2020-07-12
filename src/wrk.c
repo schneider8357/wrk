@@ -4,6 +4,10 @@
 #include "script.h"
 #include "main.h"
 
+FILE * fp;
+int i = 0;
+long unsigned reqsec = 0;
+
 static struct config {
     uint64_t connections;
     uint64_t duration;
@@ -61,6 +65,8 @@ static void usage() {
 int main(int argc, char **argv) {
     char *url, **headers = zmalloc(argc * sizeof(char *));
     struct http_parser_url parts = {};
+
+    fp = fopen ("reqsec.raw","w");
 
     if (parse_args(&cfg, &url, &parts, headers, argc, argv)) {
         usage();
@@ -170,6 +176,7 @@ int main(int argc, char **argv) {
         stats_correct(statistics.latency, interval);
     }
 
+    /*printf("\n");*/
     print_stats_header();
     print_stats("Latency", statistics.latency, format_time_us);
     print_stats("Req/Sec", statistics.requests, format_metric);
@@ -178,6 +185,8 @@ int main(int argc, char **argv) {
     char *runtime_msg = format_time_us(runtime_us);
 
     printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
+    fprintf(fp, "%lu\n", reqsec);
+    fclose(fp);
     if (errors.connect || errors.read || errors.write || errors.timeout) {
         printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
                errors.connect, errors.read, errors.write, errors.timeout);
@@ -276,6 +285,24 @@ static int record_rate(aeEventLoop *loop, long long id, void *data) {
     if (thread->requests > 0) {
         uint64_t elapsed_ms = (time_us() - thread->start) / 1000;
         uint64_t requests = (thread->requests / (double) elapsed_ms) * 1000;
+
+	reqsec += requests;
+
+	/*printf("%lu,", requests);*/
+	if (i++ == 9) {
+		fprintf(fp, "%lu,", reqsec);
+		reqsec = 0;
+		i = 0;
+	}
+	/*
+	typedef struct {
+	    uint64_t count;
+	    uint64_t limit;
+	    uint64_t min;
+	    uint64_t max;
+	    uint64_t data[];
+	} stats;
+	*/
 
         stats_record(statistics.requests, requests);
 
