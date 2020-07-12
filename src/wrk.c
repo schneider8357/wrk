@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
     char *url, **headers = zmalloc(argc * sizeof(char *));
     struct http_parser_url parts = {};
 
-    fp = fopen ("reqsec.raw","w");
+    fp = fopen ("reqsec.raw","a");
 
     if (parse_args(&cfg, &url, &parts, headers, argc, argv)) {
         usage();
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
     char *runtime_msg = format_time_us(runtime_us);
 
     printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
-    fprintf(fp, "%lu\n", reqsec);
+    fprintf(fp, "%lu", reqsec);
     fclose(fp);
     if (errors.connect || errors.read || errors.write || errors.timeout) {
         printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
