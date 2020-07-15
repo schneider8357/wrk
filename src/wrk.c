@@ -4,8 +4,9 @@
 #include "script.h"
 #include "main.h"
 
+#define RECORD_INTERVAL_MS 1000
+
 FILE * fp;
-int i = 0;
 long unsigned reqsec = 0;
 
 static struct config {
@@ -176,7 +177,6 @@ int main(int argc, char **argv) {
         stats_correct(statistics.latency, interval);
     }
 
-    /*printf("\n");*/
     print_stats_header();
     print_stats("Latency", statistics.latency, format_time_us);
     print_stats("Req/Sec", statistics.requests, format_metric);
@@ -185,7 +185,15 @@ int main(int argc, char **argv) {
     char *runtime_msg = format_time_us(runtime_us);
 
     printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
-    fprintf(fp, "%lu", reqsec);
+    fprintf(fp, "\n");
+    /*uint64_t count;
+    uint64_t index = 1;
+    for (index=1; index<=statistics.requests->count; index++)
+    fprintf(fp, "%ld,", (stats_value_at(statistics.requests, index - 1, &count), count));
+    /*index = 11;
+    fprintf(fp, "%ld,", (stats_value_at(statistics.requests, index - 1, &count), count));
+    index = 3;
+    fprintf(fp, "%ld\n", (stats_value_at(statistics.requests, index - 1, &count), count));*/
     fclose(fp);
     if (errors.connect || errors.read || errors.write || errors.timeout) {
         printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
@@ -282,27 +290,12 @@ static int reconnect_socket(thread *thread, connection *c) {
 static int record_rate(aeEventLoop *loop, long long id, void *data) {
     thread *thread = data;
 
-    if (thread->requests > 0) {
+    if (thread->requests >= 0) {
         uint64_t elapsed_ms = (time_us() - thread->start) / 1000;
         uint64_t requests = (thread->requests / (double) elapsed_ms) * 1000;
 
-	reqsec += requests;
-
-	/*printf("%lu,", requests);*/
-	if (i++ == 9) {
-		fprintf(fp, "%lu,", reqsec);
-		reqsec = 0;
-		i = 0;
-	}
-	/*
-	typedef struct {
-	    uint64_t count;
-	    uint64_t limit;
-	    uint64_t min;
-	    uint64_t max;
-	    uint64_t data[];
-	} stats;
-	*/
+	reqsec = requests;
+	fprintf(fp, "%lu,", reqsec);
 
         stats_record(statistics.requests, requests);
 
